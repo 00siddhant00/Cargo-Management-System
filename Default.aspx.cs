@@ -7,10 +7,7 @@ namespace CargoManagement
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["user_login"] == null)
-            {
-                Response.Redirect("Login.aspx");
-            }
+            //direct load page
         }
     }
 }

@@ -41,7 +41,7 @@ namespace CargoManagement
                                     Session["user_name"] = reader["fullname"].ToString();
 
                                     // **Redirect to homepage**
-                                    Response.Redirect("Default.aspx");
+                                    Response.Redirect("Cargo.aspx");
                                 }
                                 else
                                 {

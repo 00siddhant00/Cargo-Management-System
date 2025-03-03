@@ -2,6 +2,8 @@
 using System.Web.UI;
 using MySql.Data.MySqlClient;
 using System.Configuration;
+using System.Web.DynamicData;
+using System.Collections.Generic;
 
 namespace CargoManagement
 {
@@ -9,6 +11,14 @@ namespace CargoManagement
     {
         protected string trackingId;
         protected int price;
+
+        private static readonly Dictionary<int, string> containerTypeMapping = new Dictionary<int, string>
+        {
+            { 0, "Liquid" },
+            { 1, "Ice" },
+            { 2, "Gas" },
+            { 3, "Normal" }
+        };
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -33,6 +43,16 @@ namespace CargoManagement
                 lblWeight.Text = Session["weight"]?.ToString();
                 lblVolume.Text = Session["volume"]?.ToString();
                 lblQuantity.Text = Session["quantity"]?.ToString();
+                int containerType;
+                if (int.TryParse(Session["container_type"]?.ToString(), out containerType) && containerTypeMapping.ContainsKey(containerType))
+                {
+                    lblContainerType.Text = containerTypeMapping[containerType - 1];
+                }
+                else
+                {
+                    lblContainerType.Text = "Unknown"; // Or any default value you want to show
+                }
+
 
                 // **Calculate Dynamic Price**
                 CalculatePrice();
@@ -46,21 +66,31 @@ namespace CargoManagement
             decimal weight = Convert.ToDecimal(Session["weight"] ?? "0");
             decimal volume = Convert.ToDecimal(Session["volume"] ?? "0");
             int quantity = Convert.ToInt32(Session["quantity"] ?? "0");
+            int type = Convert.ToInt32(Session["container_type"] ?? "3"); // Default to 3 if null
 
             if (!string.IsNullOrEmpty(pickup) && !string.IsNullOrEmpty(destination))
             {
-                int distance = 300; 
+                int distance = 300;
                 int basePrice = distance * 5;
                 int weightPrice = (int)weight * 30;
                 int volumePrice = (int)volume * 40;
                 int quantityPrice = quantity * 20;
+                int typePrice = 100; // Default for Normal
 
-                price = basePrice + weightPrice + volumePrice + quantityPrice;
+                if (type == 1)
+                    typePrice = 200; // Liquid
+                else if (type == 2)
+                    typePrice = 300; // Ice
+                else if (type == 3)
+                    typePrice = 400; // Gas
+
+                int price = basePrice + weightPrice + volumePrice + quantityPrice + typePrice;
 
                 lblAmount.Text = "₹" + price.ToString();
                 Session["payment_amount"] = price;
             }
         }
+
 
         protected void btnConfirmPayment_Click(object sender, EventArgs e)
         {
@@ -103,9 +133,9 @@ namespace CargoManagement
 
                     // **Insert Cargo details into DB only when Confirm Payment is clicked**
                     string cargoQuery = "INSERT INTO cargo (tracking_id, user_id, sender_name, sender_email, sender_contact, sender_address, sender_city, " +
-                                        "receiver_name, receiver_email, receiver_contact, receiver_address, receiver_city, weight, volume, quantity, status) " +
+                                        "receiver_name, receiver_email, receiver_contact, receiver_address, receiver_city, weight, volume, quantity, container_type, status) " +
                                         "VALUES (@TrackingId, @UserId, @SenderName, @SenderEmail, @SenderContact, @SenderAddress, @Pickup, " +
-                                        "@ReceiverName, @ReceiverEmail, @ReceiverContact, @ReceiverAddress, @Destination, @Weight, @Volume, @Quantity, 0)";
+                                        "@ReceiverName, @ReceiverEmail, @ReceiverContact, @ReceiverAddress, @Destination, @Weight, @Volume, @Quantity, @ContainerType, 0)";
 
                     using (MySqlCommand cmd = new MySqlCommand(cargoQuery, conn))
                     {
@@ -124,9 +154,10 @@ namespace CargoManagement
                         cmd.Parameters.AddWithValue("@Weight", Convert.ToDecimal(Session["weight"] ?? 0));
                         cmd.Parameters.AddWithValue("@Volume", Convert.ToDecimal(Session["volume"] ?? 0));
                         cmd.Parameters.AddWithValue("@Quantity", Convert.ToInt32(Session["quantity"] ?? 0));
-
+                        cmd.Parameters.AddWithValue("@ContainerType", Session["container_type"]?.ToString() ?? DBNull.Value.ToString());
                         cmd.ExecuteNonQuery();
                     }
+
 
                     // **Insert payment details**
                     string paymentQuery = "INSERT INTO payments (tracking_id, user_id, amount, payment_date) " +

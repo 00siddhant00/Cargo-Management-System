@@ -37,7 +37,6 @@ namespace CargoManagement
                 {
                     cmd.Parameters.AddWithValue("@Email", email);
                     cmd.Parameters.AddWithValue("@Password", hashedPassword);
-
                     return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
                 }
             }

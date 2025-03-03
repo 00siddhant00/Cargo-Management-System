@@ -22,7 +22,12 @@ namespace CargoManagement
             using (MySqlConnection conn = new MySqlConnection(connectionString))
             {
                 conn.Open();
-                string query = "SELECT tracking_id, sender_name, receiver_name, sender_city AS pickup, receiver_city AS destination, status FROM cargo";
+                string query = @"
+            SELECT c.tracking_id, c.sender_name, c.receiver_name, 
+                   c.sender_city AS pickup, c.receiver_city AS destination, 
+                   c.status, d.fullname AS driver
+            FROM cargo c
+            LEFT JOIN driver d ON c.driver_id = d.id";
 
                 using (MySqlCommand cmd = new MySqlCommand(query, conn))
                 {
@@ -37,6 +42,37 @@ namespace CargoManagement
             }
         }
 
+
+        private void LoadDrivers(DropDownList ddlDrivers)
+        {
+            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            {
+                string query = "SELECT id, fullname FROM driver WHERE status = 0";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    conn.Open();
+                    using (MySqlDataAdapter da = new MySqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        da.Fill(dt);
+
+                        ddlDrivers.DataSource = dt;
+                        ddlDrivers.DataTextField = "fullname";
+                        ddlDrivers.DataValueField = "id";
+                        ddlDrivers.DataBind();
+                        ddlDrivers.Items.Insert(0, new ListItem("-- Select a Driver --", "0"));
+
+                    }
+                }
+            }
+
+            ddlDrivers.Items.Insert(0, new ListItem("-- Select a Driver --", "0")); // ✅ Fixed typo
+        }
+
+
         // ✅ Fix: Add Logout Method
         protected void btnLogout_Click(object sender, EventArgs e)
         {
@@ -49,7 +85,17 @@ namespace CargoManagement
         {
             gridAdminCargo.EditIndex = e.NewEditIndex;
             LoadCargoData();
+
+            GridViewRow row = gridAdminCargo.Rows[e.NewEditIndex];
+            DropDownList ddlDriver = (DropDownList)row.FindControl("ddlDriver");
+
+            if (ddlDriver != null)
+            {
+                LoadDrivers(ddlDriver);
+                ddlDriver.SelectedValue = gridAdminCargo.DataKeys[e.NewEditIndex].Values["tracking_id"].ToString();
+            }
         }
+
 
         // ✅ Cancels Editing
         protected void gridAdminCargo_RowCancelingEdit(object sender, GridViewCancelEditEventArgs e)
@@ -69,12 +115,14 @@ namespace CargoManagement
             string pickup = (row.FindControl("txtPickup") as TextBox).Text.Trim();
             string destination = (row.FindControl("txtDestination") as TextBox).Text.Trim();
             int status = Convert.ToInt32((row.FindControl("ddlStatus") as DropDownList).SelectedValue);
+            DropDownList ddlDriver = (DropDownList)row.FindControl("ddlDriver");
+            int driverId = Convert.ToInt32(ddlDriver.SelectedValue);
 
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
             using (MySqlConnection conn = new MySqlConnection(connectionString))
             {
                 conn.Open();
-                string query = "UPDATE cargo SET sender_name=@Sender, receiver_name=@Receiver, sender_city=@Pickup, receiver_city=@Destination, status=@Status WHERE tracking_id=@TrackingId";
+                string query = "UPDATE cargo SET sender_name=@Sender, receiver_name=@Receiver, sender_city=@Pickup, receiver_city=@Destination, status=@Status, driver_id=@DriverId WHERE tracking_id=@TrackingId";
 
                 using (MySqlCommand cmd = new MySqlCommand(query, conn))
                 {
@@ -82,6 +130,7 @@ namespace CargoManagement
                     cmd.Parameters.AddWithValue("@Receiver", receiverName);
                     cmd.Parameters.AddWithValue("@Pickup", pickup);
                     cmd.Parameters.AddWithValue("@Destination", destination);
+                    cmd.Parameters.AddWithValue("@DriverId", driverId);
                     cmd.Parameters.AddWithValue("@Status", status);
                     cmd.Parameters.AddWithValue("@TrackingId", trackingId);
 

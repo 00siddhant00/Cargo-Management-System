@@ -4,6 +4,9 @@ using System.Web.UI;
 using MySql.Data.MySqlClient;
 using System.Collections.Generic;
 using System.Web.UI.WebControls;
+using System.Configuration;
+using System.Data.SqlClient;
+using System.Linq;
 
 namespace CargoManagement
 {
@@ -29,6 +32,14 @@ namespace CargoManagement
             { ("Thane", "Aurangabad"), 320 }
         };
 
+        private static readonly Dictionary<int, string> containerTypeMapping = new Dictionary<int, string>
+        {
+            { 1, "Liquid" },
+            { 2, "Ice" },
+            { 3, "Gas" },
+            { 0, "Normal" }
+        };
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["user_login"] == null)
@@ -40,6 +51,8 @@ namespace CargoManagement
             {
                 LoadActiveDeliveries();
                 LoadMaharashtraLocations();
+                LoadContainerTypes();
+                CalculateTotalCost();
             }
         }
 
@@ -130,14 +143,10 @@ namespace CargoManagement
             string weight = txtWeight.Text.Trim();
             string volume = txtVolume.Text.Trim();
             string quantity = txtQuantity.Text.Trim();
+            string containerType = ddlContainerTypes.SelectedValue; // Added container type
 
             // **Ensure required fields are filled**
-            if (string.IsNullOrWhiteSpace(senderName) || string.IsNullOrWhiteSpace(senderContact) ||
-                string.IsNullOrWhiteSpace(senderAddress) || string.IsNullOrWhiteSpace(receiverName) ||
-                string.IsNullOrWhiteSpace(receiverContact) || string.IsNullOrWhiteSpace(receiverAddress) ||
-                string.IsNullOrWhiteSpace(pickup) || string.IsNullOrWhiteSpace(destination) ||
-                string.IsNullOrWhiteSpace(weight) || string.IsNullOrWhiteSpace(volume) ||
-                string.IsNullOrWhiteSpace(quantity))
+            if (new[] { senderName, senderContact, senderAddress, receiverName, receiverContact, receiverAddress, pickup, destination, weight, volume, quantity, containerType }.Any(string.IsNullOrWhiteSpace))
             {
                 lblMessage.Text = "All fields except sender and receiver email must be filled!";
                 lblMessage.ForeColor = System.Drawing.Color.Red;
@@ -154,26 +163,36 @@ namespace CargoManagement
                 return;
             }
 
-            // **Store details in session (NO DATABASE INSERT YET)**
-            Session["sender_name"] = senderName;
-            Session["sender_email"] = senderEmail;
-            Session["sender_contact"] = senderContact;
-            Session["sender_address"] = senderAddress;
-            Session["receiver_name"] = receiverName;
-            Session["receiver_email"] = receiverEmail;
-            Session["receiver_contact"] = receiverContact;
-            Session["receiver_address"] = receiverAddress;
-            Session["pickup"] = pickup;
-            Session["destination"] = destination;
-            Session["weight"] = parsedWeight;
-            Session["volume"] = parsedVolume;
-            Session["quantity"] = parsedQuantity;
+            try
+            {
+                // **Store details in session (NO DATABASE INSERT YET)**
+                Session["sender_name"] = senderName;
+                Session["sender_email"] = senderEmail;
+                Session["sender_contact"] = senderContact;
+                Session["sender_address"] = senderAddress;
+                Session["receiver_name"] = receiverName;
+                Session["receiver_email"] = receiverEmail;
+                Session["receiver_contact"] = receiverContact;
+                Session["receiver_address"] = receiverAddress;
+                Session["pickup"] = pickup;
+                Session["destination"] = destination;
+                Session["weight"] = parsedWeight;
+                Session["volume"] = parsedVolume;
+                Session["quantity"] = parsedQuantity;
+                Session["container_type"] = containerType;
 
-            // Generate tracking ID but do NOT store it in the database yet
-            Session["tracking_id"] = Guid.NewGuid().ToString("N").Substring(0, 16);
+                // Generate tracking ID but do NOT store it in the database yet
+                Session["tracking_id"] = Guid.NewGuid().ToString("N").Substring(0, 16).ToUpper();
 
-            // Redirect to Payment page
-            Response.Redirect("Payment.aspx");
+                // Redirect to Payment page
+                Response.Redirect("Payment.aspx");
+            }
+            catch (Exception ex)
+            {
+                lblMessage.Text = "An error occurred while processing your request. Please try again.";
+                lblMessage.ForeColor = System.Drawing.Color.Red;
+                // Log the error (if applicable)
+            }
         }
 
 
@@ -192,6 +211,37 @@ namespace CargoManagement
             }
         }
 
+        private void LoadContainerTypes()
+        {
+            ddlContainerTypes.Items.Clear();
+            ddlContainerTypes.Items.Add(new ListItem("-- Select a Container Type --", "-1"));
 
+            foreach (var entry in containerTypeMapping)
+            {
+                ddlContainerTypes.Items.Add(new ListItem(entry.Value, entry.Key.ToString()));
+            }
+        }
+
+
+        protected void CalculateTotalCost()
+        {
+            if (!string.IsNullOrEmpty(txtWeight.Text) && !string.IsNullOrEmpty(txtVolume.Text) && !string.IsNullOrEmpty(txtQuantity.Text))
+            {
+                int price;
+                double weight = Convert.ToDouble(txtWeight.Text);
+                double volume = Convert.ToDouble(txtVolume.Text);
+                int quantity = Convert.ToInt32(txtQuantity.Text);
+
+                int distance = 300;
+                int basePrice = distance * 5;
+                int weightPrice = (int)weight * 30;
+                int volumePrice = (int)volume * 40;
+                int quantityPrice = quantity * 20;
+
+                price = basePrice + weightPrice + volumePrice + quantityPrice;
+
+                lblTotalCost.Text = price.ToString("F2");
+            }
+        }
     }
 }

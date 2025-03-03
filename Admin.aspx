@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Admin.aspx.cs" Inherits="CargoManagement.Admin" %>
+
 <%@ Register TagPrefix="uc" Src="Header.ascx" TagName="Header" %>
 <%@ Register TagPrefix="uc" Src="Footer.ascx" TagName="Footer" %>
 
@@ -25,7 +26,7 @@
                     OnRowUpdating="gridAdminCargo_RowUpdating"
                     OnRowCancelingEdit="gridAdminCargo_RowCancelingEdit"
                     OnRowCommand="gridAdminCargo_RowCommand">
-                    
+
                     <Columns>
                         <asp:BoundField DataField="tracking_id" HeaderText="Tracking ID" ReadOnly="True" />
                         <asp:TemplateField HeaderText="Sender">
@@ -60,6 +61,17 @@
                                 <asp:Label ID="lblDestination" runat="server" Text='<%# Eval("destination") %>'></asp:Label>
                             </ItemTemplate>
                         </asp:TemplateField>
+
+                        <asp:TemplateField HeaderText="Driver">
+                            <ItemTemplate>
+                                <asp:Label ID="lblDriver" runat="server" Text='<%# Eval("driver") %>'></asp:Label>
+                            </ItemTemplate>
+                            <EditItemTemplate>
+                                <asp:DropDownList ID="ddlDriver" runat="server"></asp:DropDownList>
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+
+
                         <asp:TemplateField HeaderText="Status">
                             <EditItemTemplate>
                                 <asp:DropDownList ID="ddlStatus" runat="server" CssClass="form-control">
@@ -76,12 +88,13 @@
                         <asp:CommandField ShowEditButton="True" HeaderText="Actions" />
                         <asp:TemplateField>
                             <ItemTemplate>
-                                <asp:Button ID="btnDelete" runat="server" CssClass="btn btn-sm btn-danger" CommandName="DeleteCargo" CommandArgument='<%# Eval("tracking_id") %>' Text="Delete" OnClientClick="return confirm('Are you sure?');"/>
+                                <asp:Button ID="btnDelete" runat="server" CssClass="btn btn-sm btn-danger" CommandName="DeleteCargo" CommandArgument='<%# Eval("tracking_id") %>' Text="Delete" OnClientClick="return confirm('Are you sure?');" />
                             </ItemTemplate>
                         </asp:TemplateField>
                     </Columns>
                 </asp:GridView>
             </div>
+
 
             <div class="text-center mt-3">
                 <asp:Button ID="btnLogout" runat="server" CssClass="btn btn-warning" Text="Logout" OnClick="btnLogout_Click" />
